@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SEPAL — Analytics PAI</title>
+  <title>SEPAL - Analytics PAI</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -182,7 +182,7 @@
   <nav class="nav-bar">
     <div class="nav-container">
       <div class="nav-brand">
-        <h1>SEPAL — Analytics PAI</h1>
+        <h1>SEPAL - Analytics PAI</h1>
         <div class="subtitle">Visão Estratégica e Relatórios</div>
       </div>
       <div class="nav-links">
@@ -307,10 +307,16 @@
     }
 
     function processarERenderizar(missionarios, respostas) {
-      if (!missionarios.length || !respostas.length) return;
+      if (!missionarios.length || !respostas.length) {
+        document.getElementById('kpi-missionarios').textContent = missionarios.length;
+        document.getElementById('kpi-respostas').textContent = respostas.length;
+        document.getElementById('kpi-score-geral').textContent = '0%';
+        document.getElementById('kpi-alertas').textContent = '0';
+        document.getElementById('ranking-body').innerHTML = '<tr><td colspan="2" class="loading-state">Aguardando respostas do questionário.</td></tr>';
+        return;
+      }
 
       // --- KPIs ---
-      const missionariosComResposta = new Set(respostas.map(r => r.missionario_id));
       document.getElementById('kpi-missionarios').textContent = missionarios.length;
       document.getElementById('kpi-respostas').textContent = respostas.length;
 
@@ -507,7 +513,19 @@
       });
     }
 
-    carregarDados();
+    function escutarRealtime() {
+      supabase
+        .channel('analytics-respostas')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'respostas' }, carregarDados)
+        .subscribe();
+
+      supabase
+        .channel('analytics-missionarios')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'missionarios' }, carregarDados)
+        .subscribe();
+    }
+
+    carregarDados().then(escutarRealtime);
   </script>
 </body>
 </html>
