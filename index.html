@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SEPAL - Portal PAI</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #f5f5f0;
+      --card: #ffffff;
+      --text: #1f1f1c;
+      --muted: #666666;
+      --primary: #1f4e79;
+      --green: #2e7d32;
+      --amber: #b86e00;
+      --red: #b71c1c;
+      --purple: #5b47b5;
+      --border: #e5e5e5;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.45;
+    }
+
+    .topbar {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .topbar-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    h1, h2, p { margin: 0; }
+    h1 { color: var(--primary); font-size: 24px; font-weight: 650; }
+    .subtitle { margin-top: 4px; color: var(--muted); font-size: 14px; }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      border: 1px solid #cfe7d2;
+      color: var(--green);
+      background: #edf7ee;
+      border-radius: 999px;
+      padding: 8px 13px;
+      font-size: 13px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .5; transform: scale(1.35); }
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px;
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      min-height: 118px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .kpi.blue { border-top: 4px solid var(--primary); }
+    .kpi.green { border-top: 4px solid var(--green); }
+    .kpi.amber { border-top: 4px solid var(--amber); }
+    .kpi.purple { border-top: 4px solid var(--purple); }
+    .kpi-value { font-size: 32px; font-weight: 700; color: var(--text); line-height: 1; }
+    .kpi-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; font-weight: 650; }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h2 { color: var(--primary); font-size: 18px; font-weight: 650; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 780px; }
+    th {
+      color: var(--muted);
+      background: #fbfbf8;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      text-align: left;
+      padding: 12px 14px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    td {
+      padding: 13px 14px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px;
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+    .missionario { font-weight: 700; }
+    .pergunta { max-width: 360px; color: #34342f; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .tag.bem { background: #e6f4ea; color: #1b5e20; }
+    .tag.regular { background: #fff3d7; color: #8a5300; }
+    .tag.preocupado { background: #fde7e7; color: #8f1717; }
+    .tag.livre { background: #efefef; color: #555; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+    .pilar { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .3px; font-weight: 750; }
+    .empty-state { padding: 56px 20px; text-align: center; color: var(--muted); font-style: italic; }
+
+    @keyframes highlight {
+      0% { background: #fff8e1; }
+      100% { background: transparent; }
+    }
+
+    .new-row { animation: highlight 2.4s ease-out; }
+
+    @media (max-width: 900px) {
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 620px) {
+      .topbar-inner { align-items: flex-start; flex-direction: column; padding: 18px 20px; }
+      .container { padding: 20px; }
+      .kpis { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div>
+        <h1>SEPAL - Portal PAI</h1>
+        <p class="subtitle">Acompanhamento mensal · Dashboard ao vivo</p>
+      </div>
+      <div class="live-badge"><span class="live-dot"></span>Conectado em tempo real</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="kpis" aria-label="Indicadores do PAI">
+      <article class="kpi blue">
+        <div class="kpi-value" id="kpi-total">0</div>
+        <div class="kpi-label">Total de respostas</div>
+      </article>
+      <article class="kpi green">
+        <div class="kpi-value" id="kpi-score">-</div>
+        <div class="kpi-label">Score médio</div>
+      </article>
+      <article class="kpi amber">
+        <div class="kpi-value" id="kpi-ativos">0</div>
+        <div class="kpi-label">Missionários ativos</div>
+      </article>
+      <article class="kpi purple">
+        <div class="kpi-value" id="kpi-ultima">-</div>
+        <div class="kpi-label">Última resposta</div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Respostas recentes</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Missionário</th>
+              <th>Pergunta</th>
+              <th>Resposta</th>
+              <th>Pilar</th>
+              <th>Quando</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-respostas"></tbody>
+        </table>
+        <div class="empty-state" id="empty-state">Aguardando respostas... peça para o missionário enviar /start no Telegram.</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ==========================================================
+    // CONFIGURE AQUI
+    const SUPABASE_URL = 'SUA_SUPABASE_URL';
+    const SUPABASE_KEY = 'SUA_ANON_KEY';
+    // ==========================================================
+
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const respostasMap = new Map();
+    const missionariosMap = new Map();
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+      }[char]));
+    }
+
+    function formatarTempo(iso) {
+      if (!iso) return '-';
+      const segundos = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+      if (segundos < 60) return 'agora mesmo';
+      if (segundos < 3600) return `há ${Math.floor(segundos / 60)} min`;
+      if (segundos < 86400) return `há ${Math.floor(segundos / 3600)} h`;
+      return new Date(iso).toLocaleDateString('pt-BR');
+    }
+
+    function badgeResposta(resposta) {
+      const texto = String(resposta ?? '');
+      const normalizado = texto.trim().toLowerCase();
+      if (normalizado === 'bem') return '<span class="tag bem">Bem</span>';
+      if (normalizado === 'regular') return '<span class="tag regular">Regular</span>';
+      if (normalizado === 'preocupado') return '<span class="tag preocupado">Preocupado</span>';
+      const curto = texto.length > 40 ? `${texto.slice(0, 40)}...` : texto;
+      return `<span class="tag livre">${escapeHtml(curto)}</span>`;
+    }
+
+    function renderizar() {
+      const respostas = Array.from(respostasMap.values());
+      const total = respostas.length;
+
+      document.getElementById('kpi-total').textContent = total;
+      document.getElementById('kpi-ativos').textContent = new Set(respostas.map(r => r.missionario_id)).size;
+
+      const comScore = respostas.filter(r => Number(r.pergunta_id) < 5);
+      if (comScore.length) {
+        const soma = comScore.reduce((acc, r) => acc + Number(r.score || 0), 0);
+        document.getElementById('kpi-score').textContent = `${Math.round((soma / (comScore.length * 10)) * 100)}/100`;
+      } else {
+        document.getElementById('kpi-score').textContent = '-';
+      }
+
+      const ordenadas = respostas.sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em));
+      document.getElementById('kpi-ultima').textContent = ordenadas[0] ? formatarTempo(ordenadas[0].criado_em) : '-';
+
+      const tbody = document.getElementById('tbody-respostas');
+      const empty = document.getElementById('empty-state');
+      empty.style.display = total ? 'none' : 'block';
+
+      tbody.innerHTML = ordenadas.map((r) => {
+        const missionario = missionariosMap.get(r.missionario_id);
+        const nome = missionario?.nome || 'Missionário';
+        return `
+          <tr data-id="${escapeHtml(r.id)}">
+            <td class="missionario">${escapeHtml(nome)}</td>
+            <td class="pergunta">${escapeHtml(r.pergunta_texto || '-')}</td>
+            <td>${badgeResposta(r.resposta)}</td>
+            <td><span class="pilar">${escapeHtml(r.pilar || '-')}</span></td>
+            <td>${formatarTempo(r.criado_em)}</td>
+          </tr>`;
+      }).join('');
+    }
+
+    function destacarNovaLinha(id) {
+      setTimeout(() => {
+        const row = document.querySelector(`tr[data-id="${CSS.escape(id)}"]`);
+        if (row) row.classList.add('new-row');
+      }, 50);
+    }
+
+    async function carregarInicial() {
+      const { data: missionarios, error: missionariosError } = await supabaseClient.from('missionarios').select('*');
+      const { data: respostas, error: respostasError } = await supabaseClient.from('respostas').select('*').order('criado_em', { ascending: false });
+
+      if (missionariosError || respostasError) {
+        console.error('Falha ao carregar dados do Supabase:', missionariosError || respostasError);
+      }
+
+      missionarios?.forEach(m => missionariosMap.set(m.id, m));
+      respostas?.forEach(r => respostasMap.set(r.id, r));
+      renderizar();
+    }
+
+    function escutarRealtime() {
+      supabaseClient
+        .channel('respostas-channel')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'respostas' }, (payload) => {
+          respostasMap.set(payload.new.id, payload.new);
+          renderizar();
+          destacarNovaLinha(payload.new.id);
+        })
+        .subscribe();
+
+      supabaseClient
+        .channel('missionarios-channel')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'missionarios' }, (payload) => {
+          missionariosMap.set(payload.new.id, payload.new);
+          renderizar();
+        })
+        .subscribe();
+    }
+
+    carregarInicial().then(escutarRealtime);
+    setInterval(renderizar, 60000);
+  </script>
+</body>
+</html>
