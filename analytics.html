@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SEPAL — Analytics PAI</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --nav-bg: #13355B; 
+      --bg: #F8F7F4; 
+      --text: #2C3E50; 
+      --text-sec: #6B7B8D;
+      --primary: #13355B;
+      --green: #2E6B4A; 
+      --amber: #C49A3C; 
+      --red: #9B2C2C; 
+      --border: #E2E0DB;
+      --card-bg: #FFFFFF;
+      --purple: #7B1FA2;
+      --gray: #9E9E9E;
+    }
+
+    * { box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; 
+      background: var(--bg); 
+      color: var(--text); 
+      margin: 0; 
+      padding: 0; 
+      line-height: 1.6; 
+    }
+    h1, h2, h3 { font-family: Georgia, 'Times New Roman', Times, serif; }
+
+    /* Header Institucional */
+    .nav-bar { 
+      background: var(--nav-bg); 
+      padding: 20px 0; 
+      color: white; 
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+    }
+    .nav-container { 
+      max-width: 1200px; 
+      margin: 0 auto; 
+      padding: 0 32px; 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+    }
+    .nav-brand h1 { font-size: 24px; margin: 0; font-weight: 600; letter-spacing: 0.5px; }
+    .nav-brand .subtitle { 
+      font-family: -apple-system, sans-serif; 
+      font-size: 13px; 
+      color: rgba(255,255,255,0.7); 
+      margin-top: 2px; 
+      font-weight: 400; 
+      letter-spacing: 0.5px; 
+      text-transform: uppercase; 
+    }
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.1);
+      transition: background 0.2s;
+    }
+    .nav-links a:hover {
+      background: rgba(255,255,255,0.2);
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 32px; }
+
+    /* KPIs */
+    .kpi-grid { 
+      display: grid; 
+      grid-template-columns: repeat(4, 1fr); 
+      gap: 24px; 
+      margin-bottom: 32px; 
+    }
+    .kpi-card { 
+      background: var(--card-bg); 
+      padding: 24px; 
+      border-radius: 8px; 
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04); 
+      display: flex; 
+      align-items: center; 
+      gap: 20px; 
+      border-top: 3px solid transparent; 
+    }
+    .kpi-card.kpi-blue { border-top-color: var(--primary); }
+    .kpi-card.kpi-green { border-top-color: var(--green); }
+    .kpi-card.kpi-amber { border-top-color: var(--amber); }
+    .kpi-card.kpi-red { border-top-color: var(--red); }
+    
+    .kpi-icon { 
+      width: 48px; 
+      height: 48px; 
+      border-radius: 50%; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      flex-shrink: 0; 
+    }
+    .kpi-blue .kpi-icon { background: #E8EEF4; color: var(--primary); }
+    .kpi-green .kpi-icon { background: #E6F0EA; color: var(--green); }
+    .kpi-amber .kpi-icon { background: #F5EFE2; color: var(--amber); }
+    .kpi-red .kpi-icon { background: #F5E2E2; color: var(--red); }
+    
+    .kpi-info { display: flex; flex-direction: column; }
+    .kpi-value { font-family: Georgia, serif; font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; margin-bottom: 4px; }
+    .kpi-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-sec); font-weight: 600; }
+
+    /* Dashboard Grid */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    .chart-panel {
+      background: var(--card-bg);
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-panel h2 {
+      font-size: 18px;
+      color: var(--primary);
+      margin-top: 0;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .chart-container {
+      position: relative;
+      flex-grow: 1;
+      min-height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .loading-state {
+      text-align: center;
+      color: var(--text-sec);
+      font-style: italic;
+      padding: 40px;
+    }
+
+    /* Ranking Table */
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-sec); padding: 12px 16px; background: #FCFCFC; font-weight: 600; border-bottom: 1px solid var(--border); }
+    td { padding: 16px; font-size: 14px; border-bottom: 1px solid #F5F5F5; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    
+    .score-bar-container {
+      width: 100%;
+      background: #E2E0DB;
+      border-radius: 4px;
+      height: 8px;
+      overflow: hidden;
+    }
+    .score-bar {
+      height: 100%;
+      border-radius: 4px;
+    }
+    .miss-name { font-weight: 600; color: var(--text); }
+    .miss-score { font-weight: 700; color: var(--primary); margin-bottom: 4px; display: block; font-size: 13px; }
+
+    @media (max-width: 900px) {
+      .kpi-grid, .dashboard-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav-bar">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <h1>SEPAL — Analytics PAI</h1>
+        <div class="subtitle">Visão Estratégica e Relatórios</div>
+      </div>
+      <div class="nav-links">
+        <a href="index.html">← Voltar ao Live Portal</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="kpi-grid">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+        </div>
+        <div class="kpi-info">
+          <div class="kpi-value" id="kpi-missionarios">0</div>
+          <div class="kpi-label">Missionários Monitorados</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-green">
+        <div class="kpi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        </div>
+        <div class="kpi-info">
+          <div class="kpi-value" id="kpi-score-geral">0%</div>
+          <div class="kpi-label">Saúde Média Global</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-amber">
+        <div class="kpi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        </div>
+        <div class="kpi-info">
+          <div class="kpi-value" id="kpi-respostas">0</div>
+          <div class="kpi-label">Respostas Coletadas</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-red">
+        <div class="kpi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        </div>
+        <div class="kpi-info">
+          <div class="kpi-value" id="kpi-alertas">0</div>
+          <div class="kpi-label">Missionários em Alerta (<50%)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <!-- Radar Chart -->
+      <div class="chart-panel">
+        <h2>Equilíbrio dos Pilares</h2>
+        <div class="chart-container">
+          <canvas id="radarChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Line Chart -->
+      <div class="chart-panel">
+        <h2>Evolução de Saúde Geral (Últimos dias)</h2>
+        <div class="chart-container">
+          <canvas id="lineChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Doughnut Chart -->
+      <div class="chart-panel">
+        <h2>Sentimento (Avaliação Subjetiva)</h2>
+        <div class="chart-container">
+          <canvas id="doughnutChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Ranking -->
+      <div class="chart-panel">
+        <h2>Status por Missionário</h2>
+        <div class="chart-container" style="display: block; overflow-y: auto; max-height: 300px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Missionário</th>
+                <th>Saúde Média</th>
+              </tr>
+            </thead>
+            <tbody id="ranking-body">
+              <tr><td colspan="2" class="loading-state">Carregando dados...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================================
+    // CONFIGURE AQUI ↓
+    const SUPABASE_URL = 'https://ckwqjfiltfoaixiyeoue.supabase.co'; 
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrd3FqZmlsdGZvYWl4aXllb3VlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNjcwOTEsImV4cCI6MjA5Mjc0MzA5MX0.JCc7bguey7CLsNSYsoc8iquenm2B_u2IdheLYHdEk5U';      
+    // CONFIGURE AQUI ↑
+    // ==========================================================
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    // Configurações globais do Chart.js
+    Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    Chart.defaults.color = '#6B7B8D';
+    Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(19, 53, 91, 0.9)';
+    Chart.defaults.plugins.tooltip.titleFont.family = "Georgia, serif";
+    Chart.defaults.plugins.tooltip.padding = 12;
+
+    let charts = {};
+
+    async function carregarDados() {
+      try {
+        const { data: missionarios } = await supabase.from('missionarios').select('*');
+        const { data: respostas } = await supabase.from('respostas').select('*');
+        
+        processarERenderizar(missionarios || [], respostas || []);
+      } catch (e) {
+        console.error("Erro ao carregar dados", e);
+      }
+    }
+
+    function processarERenderizar(missionarios, respostas) {
+      if (!missionarios.length || !respostas.length) return;
+
+      // --- KPIs ---
+      const missionariosComResposta = new Set(respostas.map(r => r.missionario_id));
+      document.getElementById('kpi-missionarios').textContent = missionarios.length;
+      document.getElementById('kpi-respostas').textContent = respostas.length;
+
+      const scoresValidos = respostas.filter(r => r.pilar !== 'geral').map(r => r.score);
+      const mediaGeral = scoresValidos.length ? (scoresValidos.reduce((a, b) => a + b, 0) / scoresValidos.length) : 0;
+      document.getElementById('kpi-score-geral').textContent = `${Math.round((mediaGeral / 10) * 100)}%`;
+
+      // --- Processamento por Missionário ---
+      const scorePorMissionario = {};
+      respostas.forEach(r => {
+        if (r.pilar !== 'geral') {
+          if (!scorePorMissionario[r.missionario_id]) {
+            scorePorMissionario[r.missionario_id] = { soma: 0, count: 0, ultimoContato: r.criado_em };
+          }
+          scorePorMissionario[r.missionario_id].soma += r.score;
+          scorePorMissionario[r.missionario_id].count += 1;
+          if (new Date(r.criado_em) > new Date(scorePorMissionario[r.missionario_id].ultimoContato)) {
+            scorePorMissionario[r.missionario_id].ultimoContato = r.criado_em;
+          }
+        }
+      });
+
+      let alertas = 0;
+      const ranking = missionarios.filter(m => scorePorMissionario[m.id]).map(m => {
+        const d = scorePorMissionario[m.id];
+        const media = d.count > 0 ? (d.soma / d.count) : 0;
+        const percentual = Math.round((media / 10) * 100);
+        if (percentual < 50) alertas++;
+        return { nome: m.nome, percentual, data: d.ultimoContato };
+      }).sort((a, b) => a.percentual - b.percentual);
+
+      document.getElementById('kpi-alertas').textContent = alertas;
+
+      // Render Ranking Table
+      const tbody = document.getElementById('ranking-body');
+      tbody.innerHTML = ranking.map(r => {
+        let cor = '#2E6B4A'; // Verde
+        if (r.percentual < 70) cor = '#C49A3C'; // Amarelo
+        if (r.percentual < 50) cor = '#9B2C2C'; // Vermelho
+        
+        return `
+          <tr>
+            <td><span class="miss-name">${r.nome}</span></td>
+            <td>
+              <span class="miss-score">${r.percentual}%</span>
+              <div class="score-bar-container">
+                <div class="score-bar" style="width: ${r.percentual}%; background-color: ${cor};"></div>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // --- Processamento Radar (Pilares) ---
+      const pilares = { fisico: {soma:0, count:0}, familiar: {soma:0, count:0}, espiritual: {soma:0, count:0}, social: {soma:0, count:0} };
+      respostas.forEach(r => {
+        if (pilares[r.pilar]) {
+          pilares[r.pilar].soma += r.score;
+          pilares[r.pilar].count += 1;
+        }
+      });
+      
+      const radarData = Object.keys(pilares).map(p => {
+        const d = pilares[p];
+        return d.count > 0 ? ((d.soma / d.count) / 10) * 100 : 0;
+      });
+
+      renderRadar(radarData);
+
+      // --- Processamento Linha (Evolução Temporal) ---
+      const temporal = {};
+      respostas.filter(r => r.pilar !== 'geral').forEach(r => {
+        const d = new Date(r.criado_em);
+        const dataStr = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+        if (!temporal[dataStr]) temporal[dataStr] = {soma:0, count:0};
+        temporal[dataStr].soma += r.score;
+        temporal[dataStr].count += 1;
+      });
+
+      // Ordenar datas (simplificado, assumindo último mês)
+      const datas = Object.keys(temporal).sort();
+      const valoresTemporais = datas.map(d => ((temporal[d].soma / temporal[d].count) / 10) * 100);
+
+      renderLine(datas, valoresTemporais);
+
+      // --- Processamento Doughnut (Sentimento Livre) ---
+      const sentimentos = { bem: 0, regular: 0, preocupado: 0, outros: 0 };
+      respostas.filter(r => r.pilar === 'geral').forEach(r => {
+        const txt = r.resposta.trim().toLowerCase();
+        if (txt === 'bem') sentimentos.bem++;
+        else if (txt === 'regular') sentimentos.regular++;
+        else if (txt === 'preocupado') sentimentos.preocupado++;
+        else sentimentos.outros++;
+      });
+
+      renderDoughnut([sentimentos.bem, sentimentos.regular, sentimentos.preocupado, sentimentos.outros]);
+    }
+
+    // Funções de renderização do Chart.js
+    function renderRadar(data) {
+      if (charts.radar) charts.radar.destroy();
+      const ctx = document.getElementById('radarChart').getContext('2d');
+      charts.radar = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: ['Físico', 'Familiar', 'Espiritual', 'Social'],
+          datasets: [{
+            label: 'Média de Saúde (%)',
+            data: data,
+            backgroundColor: 'rgba(19, 53, 91, 0.2)',
+            borderColor: '#13355B',
+            pointBackgroundColor: '#C49A3C',
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: '#C49A3C',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              min: 0, max: 100,
+              ticks: { stepSize: 20 },
+              grid: { color: 'rgba(0,0,0,0.05)' },
+              angleLines: { color: 'rgba(0,0,0,0.05)' }
+            }
+          }
+        }
+      });
+    }
+
+    function renderLine(labels, data) {
+      if (charts.line) charts.line.destroy();
+      const ctx = document.getElementById('lineChart').getContext('2d');
+      
+      const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+      gradient.addColorStop(0, 'rgba(46, 107, 74, 0.5)');
+      gradient.addColorStop(1, 'rgba(46, 107, 74, 0.0)');
+
+      charts.line = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Média Diária (%)',
+            data: data,
+            borderColor: '#2E6B4A',
+            backgroundColor: gradient,
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#2E6B4A',
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { min: 0, max: 100, grid: { color: 'rgba(0,0,0,0.05)' } },
+            x: { grid: { display: false } }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    function renderDoughnut(data) {
+      if (charts.doughnut) charts.doughnut.destroy();
+      const ctx = document.getElementById('doughnutChart').getContext('2d');
+      charts.doughnut = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Bem', 'Regular', 'Preocupado', 'Textos Livres'],
+          datasets: [{
+            data: data,
+            backgroundColor: ['#2E6B4A', '#C49A3C', '#9B2C2C', '#6B7B8D'],
+            borderWidth: 0,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '65%',
+          plugins: {
+            legend: { position: 'bottom' }
+          }
+        }
+      });
+    }
+
+    carregarDados();
+  </script>
+</body>
+</html>
